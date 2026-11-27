@@ -9,6 +9,7 @@ import statistics
 from pathlib import Path
 from collections import deque
 
+from display import show_result
 from nirvana_paths import get_path
 
 
@@ -27,14 +28,27 @@ CALIBRATION_FILE = BASE_DIR / "colour_calibration.json"
 CALIBRATION_MODE = False
 
 STABLE_READINGS = 5
-
-# Initial threshold; tune after actual testing.
 DISTANCE_THRESHOLD = 0.15
 
+# These names MUST match calibration JSON keys.
+# They are sensor labels, not necessarily Dharma path names.
 COLOURS = [
     "red", "orange", "yellow", "green",
     "blue", "indigo", "violet", "white"
 ]
+
+# Map sensor labels to Dharma path labels.
+# Change these according to your actual physical colour mapping.
+SENSOR_TO_PATH = {
+    "red": "red",
+    "orange": "orange",
+    "yellow": "yellow",
+    "green": "green",
+    "blue": "blue",
+    "indigo": "purple",
+    "violet": "violet",
+    "white": "brown",
+}
 
 
 # =====================================================
@@ -163,9 +177,11 @@ def load_calibration():
         for colour in COLOURS:
 
             if colour not in data:
+                print("Missing calibration:", colour)
                 return False
 
             if len(data[colour]) != 4:
+                print("Invalid calibration:", colour)
                 return False
 
         calibration_data = data
@@ -361,7 +377,25 @@ def main():
                     stable_colour.upper()
                 )
 
-                play_path(stable_colour)
+                # Convert sensor label into Dharma path label.
+                path_colour = SENSOR_TO_PATH.get(stable_colour)
+
+                if path_colour is None:
+                    print("No Dharma mapping for:", stable_colour)
+                    continue
+
+                # Verify that a path exists before showing it.
+                path = get_path(path_colour)
+
+                if not path:
+                    print("No Dharma path found:", path_colour)
+                    continue
+
+                # Lottery animation and reveal.
+                show_result(path_colour)
+
+                # Play the corresponding audio.
+                play_path(path_colour)
 
     except serial.SerialException as error:
 
@@ -380,6 +414,8 @@ def main():
         if mixer_ready:
             pygame.mixer.music.stop()
             pygame.mixer.quit()
+
+        pygame.quit()
 
 
 if __name__ == "__main__":
